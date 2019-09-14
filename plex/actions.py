@@ -38,7 +38,7 @@ def analyze_metadata_item(cfg, metadata_item_id):
 
         # send refresh request
         logger.debug(f"Sending analyze metadata_item_id request to: {plex_analyze_url}")
-        resp = requests.put(plex_analyze_url, params=params, verify=False, timeout=30)
+        resp = requests.put(plex_analyze_url, params=params, verify=False, timeout=600)
 
         logger.trace(f"Request URL: {resp.url}")
         logger.trace(f"Response: {resp.status_code} {resp.reason}")
