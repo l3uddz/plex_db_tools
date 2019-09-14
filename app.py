@@ -109,6 +109,8 @@ def missing_posters(library):
         logger.info(f"There were no items with missing posters in library: {library!r}")
         sys.exit(0)
 
+    logger.info(f"Found {len(results)} items with missing posters in the library: {library!r}")
+
     # process found items
     for item in results:
         if 'title' not in item or 'id' not in item:
