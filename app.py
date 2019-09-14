@@ -92,6 +92,52 @@ def app(verbose, config_path, log_path):
 # COMMANDS
 ############################################################
 
+@app.command(help='Find unalayzed media items')
+@click.option(
+    '-l', '--library',
+    help='Library to search for unanalyzed items', required=True
+)
+def unanalyzed_media(library):
+    global cfg
+
+    # retrieve items with unanalyzed media
+    results = plex.metadata.find_items_unanalyzed(cfg.plex.database_path, library)
+    if results is None:
+        logger.error(f"Failed to find unanalyzed media items for library: {library!r}")
+        sys.exit(1)
+
+    if not results:
+        logger.info(f"There were no media items without analysis in library: {library!r}")
+        sys.exit(0)
+
+    logger.info(f"Found {len(results)} media items without analysis in library: {library!r}")
+
+    # process found items
+    for item in results:
+        if 'file' not in item or 'metadata_item_id' not in item:
+            logger.debug(f"Skipping item as there was no title or metadata_item_id found: {item}")
+            continue
+
+        # ask user what to-do
+        logger.info(f"Media analysis was required for: {item['file']}")
+        logger.info("What would you like to-do with this item? (0 = skip, 1 = analyze)")
+        user_input = input()
+        if user_input is None or user_input == '0':
+            continue
+
+        # act on user input
+        if user_input == '1':
+            # do analyze
+            logger.debug("Analyzing metadata...")
+            if plex.actions.analyze_metadata_item(cfg, item['metadata_item_id']):
+                logger.info("Media analysis successful!")
+            else:
+                continue
+
+    logger.info("Finished")
+    sys.exit(0)
+
+
 @app.command(help='Find missing posters')
 @click.option(
     '-l', '--library',
@@ -150,6 +196,9 @@ def missing_posters(library):
                 logger.info("Refreshed metadata!")
             else:
                 continue
+
+    logger.info("Finished")
+    sys.exit(0)
 
 
 ############################################################

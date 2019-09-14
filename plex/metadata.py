@@ -44,3 +44,20 @@ def find_items_missing_posters(database_path, library_name):
     # find items
     query_str = METADATA_MISSING_QUERY_STRINGS[str(library_type)]
     return sql.get_query_results(database_path, query_str, [library_name])
+
+
+def find_items_unanalyzed(database_path, library_name):
+    logger.debug(f"Finding items without analysis from library: {library_name!r}")
+
+    # build query_str
+    query_str = """select
+                    ls.name as library_name
+                    , mp.file
+                    , mi.*
+                    from media_items mi
+                    join media_parts mp on mp.media_item_id = mi.id
+                    join library_sections ls on ls.id = mi.library_section_id
+                    where mi.bitrate is null and ls.section_type in (1, 2) and ls.name = ?"""
+
+    # retrieve results
+    return sql.get_query_results(database_path, query_str, [library_name])
