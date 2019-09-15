@@ -97,8 +97,8 @@ def app(verbose, config_path, log_path):
     '-l', '--library',
     help='Library to search for unanalyzed items', required=True
 )
-@click.option('--auto-refresh', '-a', required=False, is_flag=True, help='Automatically refresh without questions')
-def unanalyzed_media(library, auto_refresh=True):
+@click.option('--auto-mode', '-a', required=False, default='0', help='Automatically perform specific action')
+def unanalyzed_media(library, auto_mode):
     global cfg
 
     # retrieve items with unanalyzed media
@@ -121,16 +121,15 @@ def unanalyzed_media(library, auto_refresh=True):
 
         logger.info(f"Media analysis was required for: {item['file']}")
 
-        user_input = '0'
-        if not auto_refresh:
+        if auto_mode == '0':
             # ask user what to-do
             logger.info("What would you like to-do with this item? (0 = skip, 1 = analyze)")
             user_input = input()
             if user_input is None or user_input == '0':
                 continue
         else:
-            # auto refresh
-            user_input = '1'
+            # user the determined auto mode
+            user_input = auto_mode
 
         # act on user input
         if user_input == '1':
