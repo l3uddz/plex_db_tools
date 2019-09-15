@@ -148,7 +148,8 @@ def unanalyzed_media(library, auto_mode):
 @click.option(
     '-l', '--library',
     help='Library to search for missing posters', required=True)
-def missing_posters(library):
+@click.option('--auto-mode', '-a', required=False, default='0', help='Automatically perform specific action')
+def missing_posters(library, auto_mode):
     global cfg
 
     # retrieve items with missing posters
@@ -188,11 +189,15 @@ def missing_posters(library):
                     f"({item['year'] if misc.valid_dict_item(item, 'year') else '????'}):"
                     f"\n{tabulate(table_data)}")
 
-        # ask user what to-do
-        logger.info("What would you like to-do with this item? (0 = skip, 1 = refresh)")
-        user_input = input()
-        if user_input is None or user_input == '0':
-            continue
+        if auto_mode == '0':
+            # ask user what to-do
+            logger.info("What would you like to-do with this item? (0 = skip, 1 = refresh)")
+            user_input = input()
+            if user_input is None or user_input == '0':
+                continue
+        else:
+            # user the determined auto mode
+            user_input = auto_mode
 
         # act on user input
         if user_input == '1':
