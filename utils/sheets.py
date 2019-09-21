@@ -29,8 +29,14 @@ def get_sheets_collection(id):
             'parts': []
         }
         for collection_part in collection_parts:
+            # validate tmdb id is valid
+            trimmed_tmdb_id = collection_part.trim()
+            if not trimmed_tmdb_id.isalnum():
+                logger.error(f"Collection {collection_name!r} had an invalid part: {trimmed_tmdb_id!r}")
+                continue
+
             # lookup tmdb movie details
-            movie_details = themoviedb.get_tmdb_id_details(collection_part)
+            movie_details = themoviedb.get_tmdb_id_details(trimmed_tmdb_id)
             if movie_details is not None:
                 collection_details['parts'].append(movie_details)
 
