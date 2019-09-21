@@ -260,6 +260,7 @@ def create_update_collection(library, tmdb_id):
             logger.info(
                 f"Added {plex_item_details['title']} ({plex_item_details['year']}) to collection: "
                 f"{collection_details['name']!r}")
+            time.sleep(2)
         else:
             logger.error(
                 f"Failed adding {plex_item_details['title']} ({plex_item_details['year']}) to collection: "
