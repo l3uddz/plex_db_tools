@@ -226,11 +226,12 @@ def create_update_all_sheets_collections(library):
     if not collections:
         logger.error("Failed to retrieve available collections from Sheets....")
         sys.exit(1)
-    logger.info(f"Retrieved {len(collections)} available collections from Sheets!")
+    logger.info(f"Retrieved {len(collections)} collections from Sheets!")
 
     # process collections
     for id, collection in collections.items():
         logger.info(f"Processing collection with id {id}: {collection['name']!r}...")
+        create_update_collection.callback(library, sheets_id=id)
         time.sleep(2.5)
 
     logger.info("Finished")
