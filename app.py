@@ -266,8 +266,8 @@ def create_update_collection(library, tmdb_id):
                 f"{collection_details['name']!r}")
             sys.exit(1)
 
-    # set collection poster
-    logger.info("Sleeping 10 seconds before attempting to set collection poster & overview")
+    # locate collection in database
+    logger.info("Sleeping 10 seconds before attempting to locate the collection in database")
     time.sleep(10)
 
     # lookup collection metadata_item_id
@@ -279,14 +279,22 @@ def create_update_collection(library, tmdb_id):
         sys.exit(1)
 
     # set poster
-    if plex.actions.set_metadata_item_poster(cfg, collection_metadata['id'], collection_details['poster_url']):
-        logger.error(f"Failed setting Plex collection poster to: {collection_details['poster_url']!r}")
-        sys.exit(1)
+    if collection_details['poster_url']:
+        if not plex.actions.set_metadata_item_poster(cfg, collection_metadata['id'], collection_details['poster_url']):
+            logger.error(f"Failed setting Plex collection poster to: {collection_details['poster_url']!r}")
+            sys.exit(1)
 
-    logger.info(f"Updated Plex collection poster to: {collection_details['poster_url']!r}")
+        logger.info(f"Updated Plex collection poster to: {collection_details['poster_url']!r}")
 
     # set overview
+    if collection_details['overview']:
+        if not plex.actions.set_metadata_item_summary(cfg, collection_metadata['id'], collection_details['overview']):
+            logger.error(f"Failed setting Plex collection summary to: {collection_details['overview']!r}")
+            sys.exit(1)
 
+        logger.info(f"Updated Plex collection summary to: {collection_details['overview']!r}")
+
+    logger.info("Finished!")
     sys.exit(0)
 
 

@@ -91,6 +91,42 @@ def set_metadata_item_collection(cfg, metadata_item_id, collection_name):
     return False
 
 
+def set_metadata_item_summary(cfg, metadata_item_id, summary):
+    try:
+        # retrieve metadata_item_id details
+        result = metadata.get_metadata_item_id(cfg.plex.database_path, metadata_item_id)
+        if not result or not misc.dict_contains_keys(result, ['id', 'library_section_id', 'metadata_type']):
+            logger.error(f"Unable to find metadata_item with id: {metadata_item_id!r}")
+            return False
+
+        # we have the details we need to build a metadata_item update
+        plex_update_url = misc.urljoin(cfg.plex.url, f"/library/sections/{result['library_section_id']}/all")
+        params = {
+            'X-Plex-Token': cfg.plex.token,
+            'id': metadata_item_id,
+            'type': result['metadata_type'],
+            'summary.value': summary,
+            'includeExternalMedia': 1
+        }
+
+        # send update request
+        logger.debug(f"Sending update metadata_item_id request to: {plex_update_url}")
+        resp = requests.put(plex_update_url, params=params, verify=False, timeout=600)
+
+        logger.trace(f"Request URL: {resp.url}")
+        logger.trace(f"Response: {resp.status_code} {resp.reason}")
+
+        if resp.status_code != 200:
+            logger.error(f"Failed updating metadata_item {metadata_item_id!r}: {resp.status_code} {resp.reason}")
+            return False
+
+        return True
+
+    except Exception:
+        logger.exception(f"Exception updating the summary of metadata_item with id {metadata_item_id!r}")
+    return False
+
+
 def set_metadata_item_poster(cfg, metadata_item_id, poster_url):
     try:
         plex_update_url = misc.urljoin(cfg.plex.url, f"/library/metadata/{metadata_item_id}/posters")
