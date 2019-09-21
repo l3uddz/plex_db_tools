@@ -89,3 +89,30 @@ def set_metadata_item_collection(cfg, metadata_item_id, collection_name):
         logger.exception(f"Exception updating metadata_item with id {metadata_item_id!r} to be in the "
                          f"{collection_name!r} collection: ")
     return False
+
+
+def set_metadata_item_poster(cfg, metadata_item_id, poster_url):
+    try:
+        plex_update_url = misc.urljoin(cfg.plex.url, f"/library/metadata/{metadata_item_id}/posters")
+        params = {
+            'X-Plex-Token': cfg.plex.token,
+            'includeExternalMedia': 1,
+            'url': poster_url
+        }
+
+        # send update request
+        logger.debug(f"Sending update metadata_item_id request to {plex_update_url}")
+        resp = requests.post(plex_update_url, params=params, verify=False, timeout=600)
+
+        logger.trace(f"Request URL: {resp.url}")
+        logger.trace(f"Response: {resp.status_code} {resp.reason}")
+
+        if resp.status_code != 200:
+            logger.error(f"Failed updating metadata_item {metadata_item_id!r}: {resp.status_code} {resp.reason}")
+            return False
+
+        return True
+
+    except Exception:
+        logger.exception(f"Exception updating poster for metadata_item with id {metadata_item_id!r} to {poster_url!r}:")
+    return False

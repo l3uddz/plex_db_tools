@@ -98,3 +98,20 @@ def get_metadata_item_by_guid(database_path, library_name, guid):
 
     # retrieve result
     return sql.get_query_result(database_path, query_str, [library_name, guid])
+
+
+def get_metadata_item_of_collection(database_path, library_name, collection_name):
+    logger.debug(f"Finding metadata_item details from library {library_name!r} for collection: {collection_name!r}")
+
+    # build query_str
+    query_str = """SELECT
+                    mi.id
+                    , mi.guid
+                    , mi.title
+                    FROM metadata_items mi
+                    JOIN library_sections ls ON ls.id = mi.library_section_id
+                    WHERE ls.name = ? and metadata_type = 18 AND mi.guid LIKE 'collection://%' 
+                    AND mi.title = ?"""
+
+    # retrieve result
+    return sql.get_query_result(database_path, query_str, [library_name, collection_name])

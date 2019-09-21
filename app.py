@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import sys
+import time
 
 import click
 import requests
@@ -264,6 +265,29 @@ def create_update_collection(library, tmdb_id):
                 f"Failed adding {plex_item_details['title']} ({plex_item_details['year']}) to collection: "
                 f"{collection_details['name']!r}")
             sys.exit(1)
+
+    # set collection poster
+    logger.info("Sleeping 10 seconds before attempting to set collection poster & overview")
+    time.sleep(10)
+
+    # lookup collection metadata_item_id
+    collection_metadata = plex.metadata.get_metadata_item_of_collection(cfg.plex.database_path, library,
+                                                                        collection_details['name'])
+    if not collection_metadata or not misc.dict_contains_keys(collection_metadata, ['id', 'guid']):
+        logger.error(
+            f"Failed to find collection in the Plex library {library!r} with name: {collection_details['name']!r}")
+        sys.exit(1)
+
+    # set poster
+    if plex.actions.set_metadata_item_poster(cfg, collection_metadata['id'], collection_details['poster_url']):
+        logger.error(f"Failed setting Plex collection poster to: {collection_details['poster_url']!r}")
+        sys.exit(1)
+
+    logger.info(f"Updated Plex collection poster to: {collection_details['poster_url']!r}")
+
+    # set overview
+
+    sys.exit(0)
 
 
 ############################################################

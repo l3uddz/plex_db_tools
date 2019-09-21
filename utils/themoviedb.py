@@ -26,6 +26,7 @@ def get_tmdb_collection_parts(tmdb_id):
         # build collection_details
         collection_details['name'] = details['name']
         collection_details['poster_url'] = f"https://image.tmdb.org/t/p/original{details['poster_path']}"
+        collection_details['overview'] = details['overview'] if 'overview' in details else ''
 
         for collection_part in details['parts']:
             if not misc.dict_contains_keys(collection_part, ['id', 'title']):
