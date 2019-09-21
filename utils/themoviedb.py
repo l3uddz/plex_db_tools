@@ -5,6 +5,34 @@ from loguru import logger
 
 from . import misc
 
+TMDB_KEY = 'da6bf4ac38be518f95bbb3c309fad7b9'
+
+
+def get_tmdb_id_details(tmdb_id):
+    logger.debug(f"Retrieving movie details for: {tmdb_id!r}")
+
+    # set api key
+    tmdb.API_KEY = TMDB_KEY
+
+    # retrieve movie details
+    try:
+        movie = tmdb.Movies(tmdb_id).info()
+        # validate response
+        if not isinstance(movie, dict) or not misc.dict_contains_keys(movie, ['id', 'imdb_id', 'title']):
+            logger.error(f"Failed retrieving movie details from Tmdb for: {tmdb_id!r}")
+            return None
+
+        # build response
+        return {
+            'title': movie['title'],
+            'tmdb_id': movie['id'],
+            'imdb_id': movie['imdb_id']
+        }
+
+    except Exception:
+        logger.exception(f"Exception retrieving Tmdb movie details for {tmdb_id!r}: ")
+    return None
+
 
 def get_tmdb_collection_parts(tmdb_id):
     logger.debug(f"Retrieving movie collection details for: {tmdb_id!r}")
@@ -12,7 +40,7 @@ def get_tmdb_collection_parts(tmdb_id):
         collection_details = {}
 
         # set api key
-        tmdb.API_KEY = 'da6bf4ac38be518f95bbb3c309fad7b9'
+        tmdb.API_KEY = TMDB_KEY
 
         # get collection details
         details = tmdb.Collections(tmdb_id).info()

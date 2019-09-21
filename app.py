@@ -12,7 +12,7 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from tabulate import tabulate
 
 import plex
-from utils import misc, themoviedb
+from utils import misc, themoviedb, sheets
 
 ############################################################
 # INIT
@@ -220,19 +220,31 @@ def missing_posters(library, auto_mode):
     help='Library to search for missing posters', required=True)
 @click.option(
     '-i', '--tmdb-id',
-    help='The Movie Database Collection ID', required=True
+    help='The Movie Database Collection ID', required=False
 )
-def create_update_collection(library, tmdb_id):
-    logger.info(f"Retrieving details for Tmdb collection: {tmdb_id!r}")
-
-    # retrieve collection details
-    collection_details = themoviedb.get_tmdb_collection_parts(tmdb_id)
-    if not collection_details or not misc.dict_contains_keys(collection_details, ['name', 'poster_url', 'parts']):
-        logger.error(f"Failed retrieving details of Tmdb collection: {tmdb_id!r}")
+@click.option(
+    '-s', '--sheets-id',
+    help='Cloudbox Sheets Collection ID', required=False
+)
+def create_update_collection(library, tmdb_id, sheets_id):
+    if not tmdb_id and not sheets_id:
+        logger.error("You must specify either a Tmdb ID or a Sheets ID!")
         sys.exit(1)
 
-    logger.info(
-        f"Retrieved collection details: {collection_details['name']!r}, {len(collection_details['parts'])} parts")
+    if tmdb_id:
+        logger.info(f"Retrieving details for Tmdb collection: {tmdb_id!r}")
+
+        # retrieve collection details
+        collection_details = themoviedb.get_tmdb_collection_parts(tmdb_id)
+        if not collection_details or not misc.dict_contains_keys(collection_details, ['name', 'poster_url', 'parts']):
+            logger.error(f"Failed retrieving details of Tmdb collection: {tmdb_id!r}")
+            sys.exit(1)
+
+        logger.info(
+            f"Retrieved collection details: {collection_details['name']!r}, {len(collection_details['parts'])} parts")
+    else:
+        logger.info(f"Retrieving details for Sheets collection: {sheets_id!r}")
+        collection_details = sheets.get_sheets_collection(sheets_id)
 
     # iterate collection items assigning them to the collection
     for item in collection_details['parts']:
