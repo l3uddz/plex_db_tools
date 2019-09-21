@@ -30,7 +30,7 @@ def get_sheets_collection(id):
         }
         for collection_part in collection_parts:
             # validate tmdb id is valid
-            trimmed_tmdb_id = collection_part.trim()
+            trimmed_tmdb_id = collection_part.strip()
             if not trimmed_tmdb_id.isalnum():
                 logger.error(f"Collection {collection_name!r} had an invalid part: {trimmed_tmdb_id!r}")
                 continue
