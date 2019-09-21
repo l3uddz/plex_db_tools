@@ -4,9 +4,9 @@ except ImportError:
     from pipes import quote as cmd_quote
 
 import json
-from datetime import datetime
 from urllib.parse import urljoin
 
+from dateutil.parser import parse
 from loguru import logger
 
 
@@ -61,8 +61,8 @@ def dump_settings(json_path, settings):
 
 def is_utc_timestamp_before(timestamp_to_check, timestamp_to_check_against):
     try:
-        to_check = datetime.fromisoformat(timestamp_to_check)
-        check_against = datetime.fromisoformat(timestamp_to_check_against)
+        to_check = parse(timestamp_to_check)
+        check_against = parse(timestamp_to_check_against)
         if to_check > check_against:
             return True
     except Exception:
