@@ -238,10 +238,16 @@ def missing_posters(library, auto_mode):
     '-c', '--changes',
     help='Only process items that have changed since last run', is_flag=True
 )
-def create_update_all_sheets_collections(library, changes):
+@click.option(
+    '-i', '--ignore-missing',
+    help='Ignore missing when generating last_run_changes', is_flag=True
+)
+def create_update_all_sheets_collections(library, changes, ignore_missing):
     global runtime_settings_path
     runtime_settings = {
-        library: {}
+        library: {
+            'last_run_changes': {}
+        }
     }
 
     if changes:
@@ -252,8 +258,7 @@ def create_update_all_sheets_collections(library, changes):
             sys.exit(1)
 
         logger.info(
-            f"Retrieving all collections from Sheets with changes since: "
-            f"{runtime_settings[library]['last_run_changes']}")
+            f"Retrieving all collections from Sheets with changes since last run")
     else:
         logger.info("Retrieving all available collections from Sheets...")
 
@@ -265,26 +270,20 @@ def create_update_all_sheets_collections(library, changes):
         logger.error("Failed to retrieve available collections from Sheets....")
         sys.exit(1)
     elif not collections and changes:
-        logger.info(f"No collections were found with changes since: {runtime_settings[library]['last_run_changes']}")
+        logger.info(f"No collections were found with changes since last run")
         sys.exit(0)
 
     logger.info(f"Retrieved {len(collections)} collections from Sheets!")
 
     # process collections
-    failures_occurred = False
-
     for id, collection in collections.items():
         logger.info(f"Processing collection with id {id}: {collection['name']!r}...")
-        if not create_update_collection.callback(library, tmdb_id=None, sheets_id=id):
-            failures_occurred = True
-        time.sleep(2.5)
+        collection_result = create_update_collection.callback(library, tmdb_id=None, sheets_id=id)
+        if collection_result is True or (ignore_missing and collection_result == -1):
+            # update last runtime for this item
+            runtime_settings[library]['last_run_changes'][str(id)] = datetime.utcnow().isoformat()
 
-    if not failures_occurred:
-        # there were no failures - so lets update the last_run_changes
-        if library in runtime_settings:
-            runtime_settings[library]['last_run_changes'] = datetime.utcnow().isoformat()
-        else:
-            runtime_settings[library] = {'last_run_changes': datetime.utcnow().isoformat()}
+        time.sleep(2.5)
 
     # dump runtime_settings
     misc.dump_settings(runtime_settings_path, runtime_settings)
@@ -307,6 +306,8 @@ def create_update_all_sheets_collections(library, changes):
     help='Cloudbox Sheets Collection ID', required=False
 )
 def create_update_collection(library, tmdb_id, sheets_id):
+    overall_result = True
+
     if not tmdb_id and not sheets_id:
         logger.error("You must specify either a Tmdb ID or a Sheets ID!")
         return False
@@ -341,6 +342,7 @@ def create_update_collection(library, tmdb_id, sheets_id):
         if not plex_item_details or not misc.dict_contains_keys(plex_item_details, ['id', 'guid', 'title', 'year']):
             logger.warning(
                 f"Failed to find collection item in library: {library!r} - {item['title']}: {json.dumps(item)}")
+            overall_result = -1
             continue
 
         # we have a plex item, lets assign it to the category
@@ -390,7 +392,7 @@ def create_update_collection(library, tmdb_id, sheets_id):
         logger.info(f"Updated collection summary to: {collection_details['overview']!r}")
 
     logger.info("Finished!")
-    return True
+    return overall_result
 
 
 ############################################################

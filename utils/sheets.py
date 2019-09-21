@@ -74,7 +74,8 @@ def get_all_sheets_collections(last_run_timestamp=None):
                 continue
 
             # compare last_run_timestamp
-            if last_run_timestamp and misc.is_utc_timestamp_before(last_run_timestamp, collection_timestamp):
+            if last_run_timestamp and str(id) in last_run_timestamp and misc.is_utc_timestamp_before(
+                    last_run_timestamp[str(id)], collection_timestamp):
                 continue
 
             # add collection to list
