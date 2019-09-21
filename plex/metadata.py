@@ -61,3 +61,40 @@ def find_items_unanalyzed(database_path, library_name):
 
     # retrieve results
     return sql.get_query_results(database_path, query_str, [library_name])
+
+
+def get_metadata_item_id(database_path, metadata_item_id):
+    logger.debug(f"Finding metadata_item details for id: {metadata_item_id!r}")
+
+    # build query_str
+    query_str = """SELECT
+                    mi.id
+                    , mi.library_section_id
+                    , mi.metadata_type
+                    , mi.guid
+                    FROM metadata_items mi
+                    WHERE mi.id = ?"""
+
+    # retrieve result
+    return sql.get_query_result(database_path, query_str, [metadata_item_id])
+
+
+def get_metadata_item_by_guid(database_path, library_name, guid):
+    logger.debug(f"Finding metadata_item details from library {library_name!r} with guid: {guid!r}")
+
+    # build query_str
+    query_str = """SELECT
+                    ls.name
+                    , mi.id
+                    , mi.guid
+                    , mi.title
+                    , mi.year
+                    FROM metadata_items mi
+                    JOIN library_sections ls ON ls.id = mi.library_section_id
+                    WHERE 
+                    ls.name = ?
+                    AND
+                    mi.guid = ?"""
+
+    # retrieve result
+    return sql.get_query_result(database_path, query_str, [library_name, guid])

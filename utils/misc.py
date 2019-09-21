@@ -27,4 +27,11 @@ def valid_dict_item(dict_to_check, item_key):
 
 
 def url_join(url_base, path):
-    return urljoin(url_base.rstrip('/'), path.lstrip('/'))
+    return urljoin(url_base, path.lstrip('/'))
+
+
+def dict_contains_keys(dict_to_check, keys):
+    for key in keys:
+        if key not in dict_to_check:
+            return False
+    return True

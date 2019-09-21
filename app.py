@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import json
 import logging
 import os
 import sys
@@ -10,7 +11,7 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from tabulate import tabulate
 
 import plex
-from utils import misc
+from utils import misc, themoviedb
 
 ############################################################
 # INIT
@@ -210,6 +211,59 @@ def missing_posters(library, auto_mode):
 
     logger.info("Finished")
     sys.exit(0)
+
+
+@app.command(help='Create or update movie collection')
+@click.option(
+    '-l', '--library',
+    help='Library to search for missing posters', required=True)
+@click.option(
+    '-i', '--tmdb-id',
+    help='The Movie Database Collection ID', required=True
+)
+def create_update_collection(library, tmdb_id):
+    logger.info(f"Retrieving details for Tmdb collection: {tmdb_id!r}")
+
+    # retrieve collection details
+    collection_details = themoviedb.get_tmdb_collection_parts(tmdb_id)
+    if not collection_details or not misc.dict_contains_keys(collection_details, ['name', 'poster_url', 'parts']):
+        logger.error(f"Failed retrieving details of Tmdb collection: {tmdb_id!r}")
+        sys.exit(1)
+
+    logger.info(
+        f"Retrieved collection details: {collection_details['name']!r}, {len(collection_details['parts'])} parts")
+
+    # iterate collection items assigning them to the collection
+    for item in collection_details['parts']:
+        # try to find item by imdb guid
+        plex_item_details = plex.metadata.get_metadata_item_by_guid(cfg.plex.database_path, library,
+                                                                    f"com.plexapp.agents.imdb://{item['imdb_id']}"
+                                                                    f"?lang=en")
+        if not plex_item_details:
+            # fallback to tmdb guid
+            plex_item_details = plex.metadata.get_metadata_item_by_guid(cfg.plex.database_path, library,
+                                                                        f"com.plexapp.agents.themoviedb://"
+                                                                        f"{item['tmdb_id']}?lang=en")
+
+        if not plex_item_details or not misc.dict_contains_keys(plex_item_details, ['id', 'guid', 'title', 'year']):
+            logger.warning(
+                f"Failed to find collection item in library: {library!r} - {item['title']}: {json.dumps(item)}")
+            continue
+
+        # we have a plex item, lets assign it to the category
+        logger.debug(
+            f"Adding {plex_item_details['title']} ({plex_item_details['year']}) to collection: "
+            f"{collection_details['name']!r}")
+
+        if plex.actions.set_metadata_item_collection(cfg, plex_item_details['id'], collection_details['name']):
+            logger.info(
+                f"Added {plex_item_details['title']} ({plex_item_details['year']}) to collection: "
+                f"{collection_details['name']!r}")
+        else:
+            logger.error(
+                f"Failed adding {plex_item_details['title']} ({plex_item_details['year']}) to collection: "
+                f"{collection_details['name']!r}")
+            sys.exit(1)
 
 
 ############################################################
