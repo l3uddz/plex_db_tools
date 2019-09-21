@@ -214,6 +214,29 @@ def missing_posters(library, auto_mode):
     sys.exit(0)
 
 
+@app.command(help='Create or updat eall sheets movie collections')
+@click.option(
+    '-l', '--library',
+    help='Library to search for missing posters', required=True)
+def create_update_all_sheets_collections(library):
+    logger.info("Retrieving all available collections from Sheets...")
+
+    # retrieve available collections
+    collections = sheets.get_all_sheets_collections()
+    if not collections:
+        logger.error("Failed to retrieve available collections from Sheets....")
+        sys.exit(1)
+    logger.info(f"Retrieved {len(collections)} available collections from Sheets!")
+
+    # process collections
+    for id, collection in collections.items():
+        logger.info(f"Processing collection with id {id}: {collection['name']!r}...")
+        time.sleep(2.5)
+
+    logger.info("Finished")
+    sys.exit(0)
+
+
 @app.command(help='Create or update movie collection')
 @click.option(
     '-l', '--library',

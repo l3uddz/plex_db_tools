@@ -15,10 +15,10 @@ def get_sheets_collection(id):
 
         # parse item
         item = collections.loc[int(id), :]
-        collection_name = item[0]
-        collection_poster = item[1]
-        collection_summary = item[2]
-        collection_parts = item[3].split(',')
+        collection_name = str(item[0])
+        collection_poster = str(item[1])
+        collection_summary = str(item[2])
+        collection_parts = str(item[3]).split(',')
         logger.debug(f"Found sheets collection: {collection_name!r} with {len(collection_parts)} parts")
 
         # build collection details
@@ -44,4 +44,42 @@ def get_sheets_collection(id):
 
     except Exception:
         logger.exception(f"Exception retrieving collection from sheets with id {id!r}: ")
+    return None
+
+
+def get_all_sheets_collections():
+    logger.debug("Retrieving all collections from sheets")
+    try:
+        # open sheet
+        collections = pd.read_csv(SHEETS_URL, index_col=0)
+
+        # build list of all available collections
+        collection_details = {}
+        for id in range(1, len(collections)):
+            item = collections.loc[int(id), :]
+            collection_name = str(item[0])
+            collection_poster = str(item[1])
+            collection_summary = str(item[2])
+            collection_parts = str(item[3]).split(',')
+
+            # validate entry has all the required data
+            if not collection_name or collection_name == 'nan' \
+                    or not collection_poster or collection_poster == 'nan' \
+                    or not collection_summary or collection_summary == 'nan' \
+                    or 'nan' in collection_parts:
+                logger.trace(f"Skipping sheets collection with id {id!r} as it did not have the required settings")
+                continue
+
+            # add collection to list
+            collection_details[str(id)] = {
+                'name': collection_name,
+                'poster_url': collection_poster,
+                'overview': collection_summary,
+                'parts': collection_parts
+            }
+
+        return collection_details
+
+    except Exception:
+        logger.exception("Exception retrieving all available collections from sheets: ")
     return None
