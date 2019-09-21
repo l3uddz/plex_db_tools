@@ -262,7 +262,7 @@ def create_update_collection(library, tmdb_id, sheets_id):
         collection_details = themoviedb.get_tmdb_collection_parts(tmdb_id)
         if not collection_details or not misc.dict_contains_keys(collection_details, ['name', 'poster_url', 'parts']):
             logger.error(f"Failed retrieving details of Tmdb collection: {tmdb_id!r}")
-            sys.exit(1)
+            return
 
         logger.info(
             f"Retrieved collection details: {collection_details['name']!r}, {len(collection_details['parts'])} parts")
@@ -301,7 +301,7 @@ def create_update_collection(library, tmdb_id, sheets_id):
             logger.error(
                 f"Failed adding {plex_item_details['title']} ({plex_item_details['year']}) to collection: "
                 f"{collection_details['name']!r}")
-            sys.exit(1)
+            return
 
     # locate collection in database
     logger.info("Sleeping 10 seconds before attempting to locate the collection in database")
@@ -313,13 +313,13 @@ def create_update_collection(library, tmdb_id, sheets_id):
     if not collection_metadata or not misc.dict_contains_keys(collection_metadata, ['id', 'guid']):
         logger.error(
             f"Failed to find collection in the Plex library {library!r} with name: {collection_details['name']!r}")
-        sys.exit(1)
+        return
 
     # set poster
     if collection_details['poster_url']:
         if not plex.actions.set_metadata_item_poster(cfg, collection_metadata['id'], collection_details['poster_url']):
             logger.error(f"Failed setting collection poster to: {collection_details['poster_url']!r}")
-            sys.exit(1)
+            return
 
         logger.info(f"Updated collection poster to: {collection_details['poster_url']!r}")
 
@@ -329,12 +329,12 @@ def create_update_collection(library, tmdb_id, sheets_id):
         time.sleep(5)
         if not plex.actions.set_metadata_item_summary(cfg, collection_metadata['id'], collection_details['overview']):
             logger.error(f"Failed setting collection summary to: {collection_details['overview']!r}")
-            sys.exit(1)
+            return
 
         logger.info(f"Updated collection summary to: {collection_details['overview']!r}")
 
     logger.info("Finished!")
-    sys.exit(0)
+    return
 
 
 ############################################################
