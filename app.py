@@ -4,6 +4,7 @@ import logging
 import os
 import sys
 import time
+from datetime import datetime
 
 import click
 import requests
@@ -22,6 +23,7 @@ from utils import misc, themoviedb, sheets
 # Globals
 cfg = None
 manager = None
+runtime_settings_path = None
 
 # Logging
 logging.getLogger("requests").setLevel(logging.WARNING)
@@ -54,14 +56,24 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
     show_default=True,
     default=os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), "activity.log")
 )
-def app(verbose, config_path, log_path):
-    global cfg
+@click.option(
+    '--rs-path',
+    envvar='RS_PATH',
+    type=click.Path(file_okay=True, dir_okay=False),
+    help='Runtime settings filepath',
+    show_default=True,
+    default=os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), "runtime_settings.json")
+)
+def app(verbose, config_path, log_path, rs_path):
+    global cfg, runtime_settings_path
 
     # Ensure paths are full paths
     if not config_path.startswith(os.path.sep):
         config_path = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), config_path)
     if not log_path.startswith(os.path.sep):
         log_path = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), log_path)
+    if not rs_path.startswith(os.path.sep):
+        rs_path = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), rs_path)
 
     # Load config
     from utils.config import Config
@@ -83,8 +95,12 @@ def app(verbose, config_path, log_path):
     }
     logger.configure(**config_logger)
 
+    # Set other variables
+    runtime_settings_path = rs_path
+
     # Display params
     logger.info("%s = %r" % ("CONFIG_PATH".ljust(12), config_path))
+    logger.info("%s = %r" % ("RS_PATH".ljust(12), rs_path))
     logger.info("%s = %r" % ("LOG_PATH".ljust(12), log_path))
     logger.info("%s = %r" % ("LOG_LEVEL".ljust(12), log_level))
     return
@@ -218,22 +234,62 @@ def missing_posters(library, auto_mode):
 @click.option(
     '-l', '--library',
     help='Library to search for missing posters', required=True)
-def create_update_all_sheets_collections(library):
-    logger.info("Retrieving all available collections from Sheets...")
+@click.option(
+    '-c', '--changes',
+    help='Only process items that have changed since last run', is_flag=True
+)
+def create_update_all_sheets_collections(library, changes):
+    global runtime_settings_path
+    runtime_settings = {
+        library: {}
+    }
+
+    if changes:
+        runtime_settings = misc.load_settings(runtime_settings_path)
+        if not runtime_settings or library not in runtime_settings or 'last_run_changes' not in runtime_settings[
+            library]:
+            logger.error(f"You must have run a full sync before changes mode will work!")
+            sys.exit(1)
+
+        logger.info(
+            f"Retrieving all collections from Sheets with changes since: "
+            f"{runtime_settings[library]['last_run_changes']}")
+    else:
+        logger.info("Retrieving all available collections from Sheets...")
 
     # retrieve available collections
-    collections = sheets.get_all_sheets_collections()
-    if not collections:
+    collections = sheets.get_all_sheets_collections(
+        None if library not in runtime_settings or 'last_run_changes' not in runtime_settings[library] else
+        runtime_settings[library]['last_run_changes'])
+    if not collections and not changes:
         logger.error("Failed to retrieve available collections from Sheets....")
         sys.exit(1)
+    elif not collections and changes:
+        logger.info(f"No collections were found with changes since: {runtime_settings[library]['last_run_changes']}")
+        sys.exit(0)
+
     logger.info(f"Retrieved {len(collections)} collections from Sheets!")
 
     # process collections
+    failures_occurred = False
+
     for id, collection in collections.items():
         logger.info(f"Processing collection with id {id}: {collection['name']!r}...")
-        create_update_collection.callback(library, tmdb_id=None, sheets_id=id)
+        if not create_update_collection.callback(library, tmdb_id=None, sheets_id=id):
+            failures_occurred = True
         time.sleep(2.5)
 
+    if not failures_occurred:
+        # there were no failures - so lets update the last_run_changes
+        if library in runtime_settings:
+            runtime_settings[library]['last_run_changes'] = datetime.utcnow().isoformat()
+        else:
+            runtime_settings[library] = {'last_run_changes': datetime.utcnow().isoformat()}
+
+    # dump runtime_settings
+    misc.dump_settings(runtime_settings_path, runtime_settings)
+
+    # finish
     logger.info("Finished")
     sys.exit(0)
 
@@ -253,7 +309,7 @@ def create_update_all_sheets_collections(library):
 def create_update_collection(library, tmdb_id, sheets_id):
     if not tmdb_id and not sheets_id:
         logger.error("You must specify either a Tmdb ID or a Sheets ID!")
-        sys.exit(1)
+        return False
 
     if tmdb_id:
         logger.info(f"Retrieving details for Tmdb collection: {tmdb_id!r}")
@@ -262,7 +318,7 @@ def create_update_collection(library, tmdb_id, sheets_id):
         collection_details = themoviedb.get_tmdb_collection_parts(tmdb_id)
         if not collection_details or not misc.dict_contains_keys(collection_details, ['name', 'poster_url', 'parts']):
             logger.error(f"Failed retrieving details of Tmdb collection: {tmdb_id!r}")
-            return
+            return False
 
         logger.info(
             f"Retrieved collection details: {collection_details['name']!r}, {len(collection_details['parts'])} parts")
@@ -301,7 +357,7 @@ def create_update_collection(library, tmdb_id, sheets_id):
             logger.error(
                 f"Failed adding {plex_item_details['title']} ({plex_item_details['year']}) to collection: "
                 f"{collection_details['name']!r}")
-            return
+            return False
 
     # locate collection in database
     logger.info("Sleeping 10 seconds before attempting to locate the collection in database")
@@ -313,13 +369,13 @@ def create_update_collection(library, tmdb_id, sheets_id):
     if not collection_metadata or not misc.dict_contains_keys(collection_metadata, ['id', 'guid']):
         logger.error(
             f"Failed to find collection in the Plex library {library!r} with name: {collection_details['name']!r}")
-        return
+        return False
 
     # set poster
     if collection_details['poster_url']:
         if not plex.actions.set_metadata_item_poster(cfg, collection_metadata['id'], collection_details['poster_url']):
             logger.error(f"Failed setting collection poster to: {collection_details['poster_url']!r}")
-            return
+            return False
 
         logger.info(f"Updated collection poster to: {collection_details['poster_url']!r}")
 
@@ -329,12 +385,12 @@ def create_update_collection(library, tmdb_id, sheets_id):
         time.sleep(5)
         if not plex.actions.set_metadata_item_summary(cfg, collection_metadata['id'], collection_details['overview']):
             logger.error(f"Failed setting collection summary to: {collection_details['overview']!r}")
-            return
+            return False
 
         logger.info(f"Updated collection summary to: {collection_details['overview']!r}")
 
     logger.info("Finished!")
-    return
+    return True
 
 
 ############################################################

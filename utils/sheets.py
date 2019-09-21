@@ -1,6 +1,7 @@
 import pandas as pd
 from loguru import logger
 
+from . import misc
 from . import themoviedb
 
 SHEETS_URL = 'https://docs.google.com/spreadsheets/d/e/' \
@@ -47,7 +48,7 @@ def get_sheets_collection(id):
     return None
 
 
-def get_all_sheets_collections():
+def get_all_sheets_collections(last_run_timestamp=None):
     logger.debug("Retrieving all collections from sheets")
     try:
         # open sheet
@@ -61,13 +62,19 @@ def get_all_sheets_collections():
             collection_poster = str(item[1])
             collection_summary = str(item[2])
             collection_parts = str(item[3]).split(',')
+            collection_timestamp = str(item[4])
 
             # validate entry has all the required data
             if not collection_name or collection_name == 'nan' \
                     or not collection_poster or collection_poster == 'nan' \
                     or not collection_summary or collection_summary == 'nan' \
-                    or 'nan' in collection_parts:
+                    or 'nan' in collection_parts \
+                    or not collection_timestamp or collection_timestamp == 'nan':
                 logger.trace(f"Skipping sheets collection with id {id!r} as it did not have the required settings")
+                continue
+
+            # compare last_run_timestamp
+            if last_run_timestamp and misc.is_utc_timestamp_before(last_run_timestamp, collection_timestamp):
                 continue
 
             # add collection to list
@@ -75,6 +82,7 @@ def get_all_sheets_collections():
                 'name': collection_name,
                 'poster_url': collection_poster,
                 'overview': collection_summary,
+                'timestamp': collection_timestamp,
                 'parts': collection_parts
             }
 

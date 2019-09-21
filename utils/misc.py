@@ -3,7 +3,11 @@ try:
 except ImportError:
     from pipes import quote as cmd_quote
 
+import json
+from datetime import datetime
 from urllib.parse import urljoin
+
+from loguru import logger
 
 
 class Singleton(type):
@@ -35,3 +39,32 @@ def dict_contains_keys(dict_to_check, keys):
         if key not in dict_to_check:
             return False
     return True
+
+
+def load_settings(json_path):
+    try:
+        with open(json_path, 'r') as fp:
+            return json.load(fp)
+    except Exception:
+        return {}
+
+
+def dump_settings(json_path, settings):
+    try:
+        with open(json_path, 'w') as fp:
+            json.dump(settings, fp, indent=2)
+        return True
+    except Exception:
+        logger.exception(f"Exception dumping settings to {json_path!r}: ")
+    return False
+
+
+def is_utc_timestamp_before(timestamp_to_check, timestamp_to_check_against):
+    try:
+        to_check = datetime.fromisoformat(timestamp_to_check)
+        check_against = datetime.fromisoformat(timestamp_to_check_against)
+        if to_check > check_against:
+            return True
+    except Exception:
+        logger.exception(f"Exception comparing timestamp {timestamp_to_check} against {timestamp_to_check_against}: ")
+    return False
