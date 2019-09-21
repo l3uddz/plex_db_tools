@@ -231,7 +231,7 @@ def create_update_all_sheets_collections(library):
     # process collections
     for id, collection in collections.items():
         logger.info(f"Processing collection with id {id}: {collection['name']!r}...")
-        create_update_collection.callback(library, sheets_id=id)
+        create_update_collection.callback(library, tmdb_id=None, sheets_id=id)
         time.sleep(2.5)
 
     logger.info("Finished")
